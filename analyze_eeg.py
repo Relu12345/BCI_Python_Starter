@@ -71,41 +71,29 @@ def analyze_eeg(file_path):
     frequencies = np.arange(1, 50, 1)
     epochs.plot_psd_topomap(bands=[(0, 4, 'Delta'), (4, 8, 'Theta'), 
                                   (8, 12, 'Alpha'), (12, 30, 'Beta')])
+    
+    mne.viz.set_3d_backend('pyvista')
 
     # Add 3D brain visualization
     mne.datasets.fetch_fsaverage(verbose=True)
     subjects_dir = mne.datasets.sample.data_path() / 'subjects'
 
-    # Create source space
-    src = mne.setup_source_space('fsaverage', spacing='oct6', 
-                                subjects_dir=subjects_dir)
+    # Create source estimate from your evoked data
+    stc = mne.SourceEstimate(evoked.data, 
+                            vertices=[np.arange(4), np.arange(4)],
+                            tmin=evoked.times[0],
+                            tstep=np.diff(evoked.times[:2])[0],
+                            subject='fsaverage')
+    
+    # Plot with time viewer
+    brain = stc.plot(subjects_dir=subjects_dir,
+                    initial_time=0.0,
+                    clim=dict(kind='value', lims=[evoked.data.min(), 0, evoked.data.max()]),
+                    smoothing_steps=7,
+                    time_viewer=True,
+                    hemi='both')
 
-    # Compute forward solution
-    conductivity = (0.3,)  # for single layer
-    model = mne.make_bem_model('fsaverage', conductivity=conductivity,
-                              subjects_dir=subjects_dir)
-    bem = mne.make_bem_solution(model)
-    
-    fwd = mne.make_forward_solution(evoked.info, trans='fsaverage',
-                                  src=src, bem=bem)
-    
-    # Compute inverse solution
-    inverse_operator = mne.minimum_norm.make_inverse_operator(
-        evoked.info, fwd, noise_cov=None, fixed=True)
-    
-    stc = mne.minimum_norm.apply_inverse(evoked, inverse_operator)
-    
-    brain = mne.viz.Brain('fsaverage', subjects_dir=subjects_dir,
-                         alpha=0.1,
-                         hemi='both',
-                         title='3D Brain Activity Visualization')
-    
-    brain.add_data(stc.data,
-                  vertices=stc.vertices,
-                  time_label='time',
-                  colormap='RdBu_r',
-                  smoothing_steps=7)
-
+    # Add sensor locations with labels
     brain.add_sensors(evoked.info, trans='fsaverage')
     
     plt.show()
@@ -121,6 +109,7 @@ def main():
     try:
         brain_view = analyze_eeg(file_path)
         brain_view.show_view('lateral')
+        input("Press Enter to close the visualization...")
     except Exception as e:
         print(f"An error occurred: {e}")
 
