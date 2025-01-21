@@ -57,8 +57,8 @@ def analyze_eeg(file_path):
     spectrum.plot(picks='eeg', average=True, dB=True)
     
     # Create epochs for better visualization
-    events = mne.make_fixed_length_events(raw, duration=1.0)
-    epochs = mne.Epochs(raw, events, tmin=0, tmax=1.0, baseline=None, preload=True)
+    events = mne.make_fixed_length_events(raw, duration=raw.times[-1])
+    epochs = mne.Epochs(raw, events, tmin=0, tmax=raw.times[-1], baseline=None, preload=True)
     evoked = epochs.average()
     
     # Plot time-frequency representation
